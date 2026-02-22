@@ -1,0 +1,23 @@
+[Desktop Entry]
+# camera-preview.desktop  –  LXDE / X autostart entry
+#
+# Copy to ~/.config/autostart/ to launch the camera preview automatically
+# whenever the desktop session starts.  This is the RECOMMENDED approach
+# for Raspbian Desktop (LXDE) because it runs after X is fully up.
+#
+# Install:
+#   mkdir -p ~/.config/autostart
+#   cp camera-preview.desktop ~/.config/autostart/
+#
+# The file will be picked up automatically at the next login.
+# To test without rebooting:
+#   lxsession-autostart  (or just run start_camera.sh from a terminal)
+
+Type=Application
+Name=PiCamViewer
+Comment=Raspberry Pi Camera Full-Screen Preview
+# Change the path if you installed PiCamViewer in a different location.
+Exec=/home/pi/PiCamViewer/start_camera.sh
+Terminal=false
+Hidden=false
+X-GNOME-Autostart-enabled=true

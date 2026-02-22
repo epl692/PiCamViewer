@@ -1,0 +1,44 @@
+# camera-preview-user.service  –  USER-LEVEL systemd unit
+#
+# Installs to:  ~/.config/systemd/user/camera-preview.service
+#
+# This unit runs inside the user's own systemd session, which starts
+# automatically when the user logs in (including after autologin).
+# DISPLAY and XAUTHORITY are inherited from the login session so there
+# is no need to hard-code them.
+#
+# Enable & start (run as the desktop user, NOT root):
+#   mkdir -p ~/.config/systemd/user
+#   cp camera-preview-user.service ~/.config/systemd/user/camera-preview.service
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now camera-preview.service
+#
+# View logs:
+#   journalctl --user -u camera-preview.service -b -f
+#
+# For the user service to start at login without an interactive session,
+# enable lingering for your user:
+#   sudo loginctl enable-linger pi
+
+[Unit]
+Description=Raspberry Pi Camera Full-Screen Preview (user session)
+Documentation=https://github.com/epl692/PiCamViewer
+# Start after the D-Bus session bus and the graphical session target.
+After=default.target graphical-session.target
+Wants=graphical-session.target
+
+[Service]
+Type=simple
+# DISPLAY and XAUTHORITY are inherited from the user session automatically.
+Restart=on-failure
+RestartSec=5s
+
+# Change the path below if you installed PiCamViewer elsewhere.
+ExecStart=%h/PiCamViewer/start_camera.sh
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=camera-preview
+
+[Install]
+WantedBy=default.target

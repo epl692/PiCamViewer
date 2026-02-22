@@ -1,0 +1,51 @@
+# camera-preview.service  –  SYSTEM-LEVEL systemd unit
+#
+# Installs to:  /etc/systemd/system/camera-preview.service
+#
+# This unit runs the camera preview as a specific user (default: pi)
+# AFTER the graphical desktop is ready.  It sets DISPLAY so the preview
+# opens on the primary X session.
+#
+# NOTE: The "pi" user must be a member of the "video" group.
+#       Check with: groups pi
+#       Add if needed: sudo usermod -aG video pi
+#
+# Enable & start:
+#   sudo cp camera-preview.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now camera-preview.service
+#
+# View logs:
+#   journalctl -u camera-preview.service -b -f
+
+[Unit]
+Description=Raspberry Pi Camera Full-Screen Preview
+Documentation=https://github.com/epl692/PiCamViewer
+# Wait until the graphical target (X/Wayland display manager) is up.
+After=graphical.target
+Wants=graphical.target
+
+[Service]
+Type=simple
+# Change "pi" to the desktop user on your system if different.
+User=pi
+# Set DISPLAY to the primary X11 display.
+Environment=DISPLAY=:0
+# Allow the service to access the X authority cookie of the "pi" user.
+Environment=XAUTHORITY=/home/pi/.Xauthority
+# Restart if the process crashes; do not restart on clean exit (exit 0).
+Restart=on-failure
+RestartSec=5s
+
+# Change the path below if you installed PiCamViewer elsewhere.
+ExecStart=/home/pi/PiCamViewer/start_camera.sh
+
+# Give the X server a moment to initialise before trying to open a window.
+ExecStartPre=/bin/sleep 3
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=camera-preview
+
+[Install]
+WantedBy=graphical.target
