@@ -1,0 +1,35 @@
+{
+  "_note": "Populated automatically by perf/benchmark.py on target hardware. Fields below reflect the CI/sandbox environment used for code analysis; replace with values from actual Raspberry Pi hardware before interpreting benchmark results.",
+  "timestamp": "2026-02-22T16:35:00Z",
+  "os": {
+    "name": "Linux",
+    "version_detect_cmd": "uname -a",
+    "distro_detect_cmd": "cat /etc/os-release"
+  },
+  "cpu": {
+    "model_detect_cmd": "cat /proc/cpuinfo | grep 'Model'",
+    "cores_detect_cmd": "nproc",
+    "governor_detect_cmd": "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
+  },
+  "gpu": {
+    "model_detect_cmd": "vcgencmd get_mem gpu",
+    "memory_mb_detect_cmd": "vcgencmd get_mem gpu"
+  },
+  "camera": {
+    "driver": "libcamera",
+    "model_detect_cmd": "libcamera-hello --list-cameras 2>&1 | head -20",
+    "v4l2_detect_cmd": "v4l2-ctl --list-devices 2>&1"
+  },
+  "python": {
+    "version_detect_cmd": "python3 --version",
+    "picamera2_version_detect_cmd": "python3 -c \"import picamera2; print(picamera2.__version__)\"",
+    "pyqt5_version_detect_cmd": "python3 -c \"import PyQt5.QtCore; print(PyQt5.QtCore.QT_VERSION_STR)\""
+  },
+  "display": {
+    "backend": "X11",
+    "detect_cmd": "echo $DISPLAY"
+  },
+  "benchmark_widget_baseline": "QPicamera2 (software Qt raster renderer)",
+  "benchmark_widget_optimized": "QGlPicamera2 (hardware OpenGL ES renderer)",
+  "expected_fps_improvement": ">= 33% based on GPU offload of per-frame rendering"
+}

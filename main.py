@@ -117,16 +117,17 @@ def run_picamera2(args):
     internally – Python never copies raw frame data.
     """
     from picamera2 import Picamera2  # type: ignore[import]
-    from picamera2.previews.qt import QGlPicamera2  # noqa: F401 – imported for side-effects
 
     log.info("Starting picamera2 preview (%dx%d @ %d fps) …",
              args.width, args.height, args.framerate)
 
     cam = Picamera2()
 
-    # Build a preview configuration; keep memory usage low.
+    # Build a preview configuration; keep memory usage low with 2 buffers
+    # (sufficient for display; reduces queue depth and latency).
     config = cam.create_preview_configuration(
         main={"size": (args.width, args.height)},
+        buffer_count=2,
         controls={"FrameDurationLimits": (
             int(1e6 // args.framerate),
             int(1e6 // args.framerate),
@@ -148,15 +149,17 @@ def run_picamera2(args):
         }
         cam.set_controls({"Transform": _transforms[args.rotation]})
 
-    # Use the Qt preview (works under X11).  The preview window is created
-    # by picamera2 itself; we ask it to go full-screen via the window hint.
-    from picamera2.previews.qt import QPicamera2  # type: ignore[import]
+    # Use the OpenGL preview (hardware-accelerated via the Pi GPU).
+    # QGlPicamera2 renders each frame through OpenGL ES, keeping CPU usage low
+    # and enabling display framerates significantly higher than the software
+    # Qt raster renderer (QPicamera2).
+    from picamera2.previews.qt import QGlPicamera2  # type: ignore[import]
     from PyQt5.QtWidgets import QApplication  # type: ignore[import]
     from PyQt5.QtCore import Qt  # type: ignore[import]
 
     app = QApplication.instance() or QApplication(sys.argv)
 
-    preview_widget = QPicamera2(cam, width=args.width, height=args.height, keep_ar=True)
+    preview_widget = QGlPicamera2(cam, width=args.width, height=args.height, keep_ar=True)
 
     if args.fullscreen:
         preview_widget.setWindowFlags(
@@ -182,7 +185,7 @@ def run_picamera2(args):
 
     timer = QTimer()
     timer.timeout.connect(_check_shutdown)
-    timer.start(200)  # check every 200 ms
+    timer.start(500)  # check every 500 ms
 
     app.exec_()
     log.info("picamera2 preview stopped.")
