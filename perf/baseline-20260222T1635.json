@@ -1,0 +1,59 @@
+{
+  "_note": "Baseline measurement artifact for PiCamViewer FPS optimization. Run perf/benchmark.py on target Raspberry Pi hardware to populate measured fields. Analysis values are based on code review.",
+  "schema_version": "1.0",
+  "timestamp": "2026-02-22T16:35:00Z",
+  "run_config": {
+    "warmup_seconds": 10,
+    "measurement_seconds": 30,
+    "runs": 5,
+    "resolution": "1920x1080",
+    "framerate_target": 30,
+    "fullscreen": true,
+    "rotation": 0
+  },
+  "baseline_code": {
+    "preview_widget": "QPicamera2",
+    "renderer": "Qt raster (CPU software rendering)",
+    "buffer_count": "default (4)",
+    "shutdown_timer_ms": 200
+  },
+  "optimized_code": {
+    "preview_widget": "QGlPicamera2",
+    "renderer": "OpenGL ES (GPU hardware rendering)",
+    "buffer_count": 2,
+    "shutdown_timer_ms": 500
+  },
+  "analysis": {
+    "bottleneck": "QPicamera2 renders each camera frame using Qt's CPU raster backend. On a Raspberry Pi, this copies frame data through the CPU for every displayed frame, consuming significant CPU time and limiting the achievable display refresh rate.",
+    "fix": "Replace QPicamera2 with QGlPicamera2. QGlPicamera2 uploads each frame to GPU memory once as an OpenGL texture and renders it using the hardware OpenGL ES pipeline, freeing the CPU and enabling much higher display throughput.",
+    "secondary_fix": "Reduce buffer_count from 4 to 2. With 2 DMA buffers the capture-to-display queue depth is halved, reducing end-to-end latency while remaining sufficient for a smooth display path.",
+    "expected_fps_gain_pct": ">= 33",
+    "stretch_goal_fps_gain_pct": "~100 (2x)"
+  },
+  "measured_results": {
+    "_note": "Replace these placeholders with values from perf/benchmark.py output",
+    "baseline_fps_mean": null,
+    "baseline_fps_median": null,
+    "baseline_fps_stddev": null,
+    "baseline_fps_p95": null,
+    "baseline_fps_p99": null,
+    "optimized_fps_mean": null,
+    "optimized_fps_median": null,
+    "optimized_fps_stddev": null,
+    "optimized_fps_p95": null,
+    "optimized_fps_p99": null,
+    "improvement_pct": null,
+    "cpu_baseline_pct": null,
+    "cpu_optimized_pct": null,
+    "frames_dropped_baseline": null,
+    "frames_dropped_optimized": null
+  },
+  "rollback": {
+    "instructions": "git revert HEAD  # or: git checkout <baseline-commit> -- main.py",
+    "key_changes_to_revert": [
+      "main.py line ~158: revert QGlPicamera2 back to QPicamera2",
+      "main.py line ~130: remove buffer_count=2 from create_preview_configuration",
+      "main.py line ~190: revert timer.start(500) back to timer.start(200)"
+    ]
+  }
+}
