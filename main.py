@@ -11,6 +11,7 @@ Usage:
                   [--fullscreen] [--no-fullscreen]
                   [--rotation {0,90,180,270}]
                   [--display :0]
+                  [--hide-cursor] [--no-hide-cursor]
 """
 
 import argparse
@@ -78,6 +79,16 @@ def parse_args():
     parser.add_argument(
         "--display", type=str, default=None,
         help="X display to use, e.g. ':0' (default: inherit DISPLAY env var)"
+    )
+    hc_group = parser.add_mutually_exclusive_group()
+    hc_group.add_argument(
+        "--hide-cursor", dest="hide_cursor", action="store_true", default=None,
+        help="Hide mouse cursor when over the preview window "
+             "(default: enabled in fullscreen mode)"
+    )
+    hc_group.add_argument(
+        "--no-hide-cursor", dest="hide_cursor", action="store_false",
+        help="Do not hide mouse cursor over the preview window"
     )
     return parser.parse_args()
 
@@ -157,6 +168,32 @@ def run_picamera2(args):
     from picamera2.previews.qt import QPicamera2  # type: ignore[import]
     preview_widget = QPicamera2(cam, width=args.width, height=args.height, keep_ar=True)
 
+    # ------------------------------------------------------------------
+    # Cursor auto-hide: default on in fullscreen, off in windowed mode.
+    # CLI flags --hide-cursor / --no-hide-cursor override the default.
+    # ------------------------------------------------------------------
+    _should_hide_cursor = (
+        args.hide_cursor if args.hide_cursor is not None else args.fullscreen
+    )
+    if _should_hide_cursor:
+        from PyQt5.QtCore import QObject, QEvent, Qt  # type: ignore[import]
+
+        class _CursorHider(QObject):
+            """Event filter that hides the cursor on Enter, restores on Leave."""
+
+            def eventFilter(self, obj, event):
+                if event.type() == QEvent.Enter:
+                    obj.setCursor(Qt.BlankCursor)
+                elif event.type() == QEvent.Leave:
+                    obj.unsetCursor()
+                return False  # do not consume the event
+
+        _cursor_hider = _CursorHider(preview_widget)
+        preview_widget.installEventFilter(_cursor_hider)
+        log.info("Cursor auto-hide enabled on preview window.")
+    else:
+        log.info("Cursor auto-hide disabled.")
+
     if args.fullscreen:
         preview_widget.setWindowFlags(
             Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
@@ -233,10 +270,16 @@ def main():
 
     args = parse_args()
 
+    # Resolve the effective cursor-hide setting before logging.
+    # None means "auto": hide in fullscreen, show in windowed mode.
+    effective_hide_cursor = (
+        args.hide_cursor if args.hide_cursor is not None else args.fullscreen
+    )
+
     log.info("PiCamViewer starting (width=%d height=%d framerate=%d "
-             "fullscreen=%s rotation=%d) …",
+             "fullscreen=%s rotation=%d hide_cursor=%s) …",
              args.width, args.height, args.framerate,
-             args.fullscreen, args.rotation)
+             args.fullscreen, args.rotation, effective_hide_cursor)
 
     check_display(args.display)
 

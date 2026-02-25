@@ -21,10 +21,11 @@ and any Pi model.
    - [5b – User-level systemd service](#5b--user-level-systemd-service)
    - [5c – System-level systemd service](#5c--system-level-systemd-service)
 4. [CLI reference](#cli-reference)
-5. [Checking logs and CPU usage](#checking-logs-and-cpu-usage)
-6. [Fallback behaviour](#fallback-behaviour)
-7. [Performance notes](#performance-notes)
-8. [Troubleshooting](#troubleshooting)
+5. [Cursor auto-hide](#cursor-auto-hide)
+6. [Checking logs and CPU usage](#checking-logs-and-cpu-usage)
+7. [Fallback behaviour](#fallback-behaviour)
+8. [Performance notes](#performance-notes)
+9. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -284,6 +285,7 @@ usage: main.py [-h] [--width W] [--height H] [--framerate FPS]
                [--fullscreen | --no-fullscreen]
                [--rotation {0,90,180,270}]
                [--display DISPLAY]
+               [--hide-cursor | --no-hide-cursor]
 
 optional arguments:
   --width W              Preview width  (default: 1920)
@@ -294,6 +296,9 @@ optional arguments:
   --rotation {0,90,180,270}
                          Camera rotation in degrees (default: 0)
   --display DISPLAY      X display to use, e.g. ':0'
+  --hide-cursor          Hide mouse cursor when over the preview window
+                         (default: enabled in fullscreen mode)
+  --no-hide-cursor       Do not hide mouse cursor over the preview window
 ```
 
 Examples:
@@ -307,6 +312,60 @@ python3 main.py --no-fullscreen --width 640 --height 480
 
 # Explicit display
 python3 main.py --display :0
+
+# Force-hide cursor even in windowed mode
+python3 main.py --no-fullscreen --hide-cursor
+
+# Keep cursor visible even in fullscreen
+python3 main.py --fullscreen --no-hide-cursor
+```
+
+---
+
+## Cursor auto-hide
+
+When the mouse cursor is over the preview window it can obstruct the camera
+feed, especially in kiosk or unattended display setups.
+
+**Default behaviour**
+
+| Mode | Cursor hidden? |
+|------|----------------|
+| Fullscreen (`--fullscreen`) | ✅ Yes (default) |
+| Windowed (`--no-fullscreen`) | ❌ No (default) |
+
+Override the default with:
+
+```bash
+# Always hide cursor (even in windowed mode)
+python3 main.py --hide-cursor
+
+# Never hide cursor (even in fullscreen)
+python3 main.py --no-hide-cursor
+```
+
+**How it works (picamera2 / PyQt5 path)**
+
+An event filter is installed on the Qt preview widget.  When the pointer
+*enters* the widget the cursor is set to `Qt.BlankCursor`; when it *leaves*
+the widget the cursor is restored.  This means:
+
+- Cursor disappears **immediately** when entering the preview area.
+- Cursor reappears **immediately** when leaving the preview area.
+- All other mouse-driven interactions (window management, panel, etc.) are
+  unaffected because the filter only acts on the preview widget itself.
+
+**Legacy picamera path (Pi OS Buster)**
+
+The legacy `picamera` library renders the preview via a GPU overlay.
+There is no Python Qt window to attach cursor events to, so
+`--hide-cursor` has no effect on that path.  To hide the cursor system-wide
+on older systems, install and run
+[`unclutter`](https://wiki.archlinux.org/title/unclutter):
+
+```bash
+sudo apt install -y unclutter
+unclutter -idle 0 -root &
 ```
 
 ---
