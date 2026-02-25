@@ -20,8 +20,8 @@ export DISPLAY="${DISPLAY:-:0}"
 echo "[start_camera.sh] Starting PiCamViewer from ${PICAMVIEWER_DIR} on ${DISPLAY} …"
 
 exec python3 "${PICAMVIEWER_DIR}/main.py" \
-    --width 1920 \
-    --height 1080 \
+    --width 320 \
+    --height 240 \
     --framerate 30 \
     --fullscreen \
     "$@"

@@ -149,17 +149,47 @@ def run_picamera2(args):
         }
         cam.set_controls({"Transform": _transforms[args.rotation]})
 
-    # Use the OpenGL preview (hardware-accelerated via the Pi GPU).
-    # QGlPicamera2 renders each frame through OpenGL ES, keeping CPU usage low
-    # and enabling display framerates significantly higher than the software
-    # Qt raster renderer (QPicamera2).
-    from picamera2.previews.qt import QGlPicamera2  # type: ignore[import]
     from PyQt5.QtWidgets import QApplication  # type: ignore[import]
     from PyQt5.QtCore import Qt  # type: ignore[import]
 
     app = QApplication.instance() or QApplication(sys.argv)
 
-    preview_widget = QGlPicamera2(cam, width=args.width, height=args.height, keep_ar=True)
+    # Probe whether OpenGL is usable before creating QGlPicamera2.
+    # QOpenGLWidget silently shows a blank window when the OpenGL context
+    # cannot be established (no exception is raised), so we test first.
+    def _opengl_available():
+        try:
+            from PyQt5.QtGui import QOffscreenSurface, QOpenGLContext  # type: ignore[import]
+            surface = QOffscreenSurface()
+            surface.create()
+            ctx = QOpenGLContext()
+            if not ctx.create():
+                return False
+            try:
+                return ctx.makeCurrent(surface)
+            finally:
+                ctx.doneCurrent()
+                surface.destroy()
+        except (ImportError, RuntimeError):
+            return False
+
+    # Prefer QGlPicamera2 (OpenGL/GPU, lower CPU usage) when OpenGL works.
+    # Fall back to QPicamera2 (software Qt raster renderer) otherwise.
+    _widget_kwargs = dict(width=args.width, height=args.height, keep_ar=True)
+    _use_gl = _opengl_available()
+    if _use_gl:
+        try:
+            from picamera2.previews.qt import QGlPicamera2  # type: ignore[import]
+            preview_widget = QGlPicamera2(cam, **_widget_kwargs)
+            log.info("Using QGlPicamera2 (OpenGL/GPU renderer).")
+        except (ImportError, RuntimeError) as exc:
+            log.warning("QGlPicamera2 init failed (%s) – falling back to QPicamera2 (software renderer).", exc)
+            _use_gl = False
+
+    if not _use_gl:
+        from picamera2.previews.qt import QPicamera2  # type: ignore[import]
+        preview_widget = QPicamera2(cam, **_widget_kwargs)
+        log.info("Using QPicamera2 (software renderer).")
 
     if args.fullscreen:
         preview_widget.setWindowFlags(
